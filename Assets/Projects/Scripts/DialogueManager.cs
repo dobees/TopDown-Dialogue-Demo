@@ -1,136 +1,112 @@
 using UnityEngine;
-using UnityEngine.UI;
 using TMPro;
+using UnityEngine.UI;
 using DG.Tweening;
-
-[System.Serializable]
-public class DialogueLine
-{
-    public string speaker;
-
-    [TextArea]
-    public string text;
-}
 
 public class DialogueManager : MonoBehaviour
 {
     [Header("UI")]
-    [SerializeField] private TMP_Text SpeakerText;
-    [SerializeField] private TMP_Text DialogueText;
-    [SerializeField] private Button NextButton;
+    [SerializeField] private GameObject dialoguePanel;
+    [SerializeField] private TMP_Text speakerText;
+    [SerializeField] private TMP_Text dialogueText;
+    [SerializeField] private Button nextButton;
+
+    [SerializeField] private GameObject interactiveUI;
+    [SerializeField] private PlayerController playerController;
 
     [Header("Animation")]
-    [SerializeField] private RectTransform DialoguePanel;
-    [SerializeField] private RectTransform Character;
-    [SerializeField] private CanvasGroup CharacterCanvasGroup;
+    [SerializeField] RectTransform dialoguePanelTransform;
+    [SerializeField] CanvasGroup dialogueCanvasGroup;
 
-    [Header("Dialogue Data")]
-    [SerializeField] private DialogueLine[] lines;
+    private DialogueLine[] currentLines;
 
-    private int currentIndex = -1;
+    private int currentIndex;
 
-    private Vector2 characterOriginalPosition;
-
-    private bool isAnimating;
+    private bool isDialogueActive;
 
     private void Start()
     {
-        NextButton.onClick.AddListener(ShowNextLine);
+        nextButton.onClick.AddListener(ShowNextLine);
 
-        PlayStartAnimation();
+        dialoguePanel.SetActive(false);
     }
 
-    private void PlayStartAnimation()
+    public void StartDialogue(DialogueLine[] lines)
     {
-        isAnimating = true;
-        NextButton.interactable = false;
+        if (lines == null || lines.Length == 0)
+        {
+            return;
+        }
 
-        characterOriginalPosition = Character.anchoredPosition;
-        DialoguePanel.localScale = Vector3.zero;
-        CharacterCanvasGroup.alpha = 0f;
+        currentLines = lines;
+        currentIndex = 0;
+        isDialogueActive = true;
+        dialoguePanel.SetActive(true);
 
-        Character.anchoredPosition = characterOriginalPosition + new Vector2(-300, 0f);
+        playerController.SetCanMove(false);
+        interactiveUI.SetActive(false);
 
+        //대화창 등장 애니메이션 준비
+        dialoguePanelTransform.localScale = Vector3.zero;
+        dialogueCanvasGroup.alpha = 0f;
+
+        ShowCurrentLine();
+
+        //대화창 등장 애니메이션, 확대와 Fade
         Sequence sequence = DOTween.Sequence();
 
-        sequence.Append(
-            DialoguePanel
-            .DOScale(Vector3.one, 0.3f) //0.3초동안 (1,1,1)사이즈로
-            .SetEase(Ease.OutBack)); //목표 크기 살짝 넘어갔다가 복귀
+        sequence.Join(
+            dialoguePanelTransform
+            .DOScale(Vector3.one, 0.25f)
+            .SetEase(Ease.OutBack));
 
         sequence.Join(
-            CharacterCanvasGroup
-            .DOFade(1f, 0.4f));
-
-        sequence.Join(
-            Character
-            .DOAnchorPos(characterOriginalPosition, 0.4f)
-            .SetEase(Ease.OutCubic));
-
-        sequence.OnComplete(() =>
-        {
-            isAnimating = false;
-            NextButton.interactable = true;
-
-            ShowNextLine();
-        });
+            dialogueCanvasGroup.DOFade(1f, 0.2f));
     }
 
-    private void ShowNextLine()
+    private void ShowCurrentLine()
     {
-        if (isAnimating)
+        DialogueLine line = currentLines[currentIndex];
+
+        speakerText.text = line.speaker;
+        dialogueText.text = line.text;
+    }
+
+    public void ShowNextLine()
+    {
+        if (!isDialogueActive)
         {
             return;
         }
 
         currentIndex++;
 
-        if (currentIndex >= lines.Length)
+        if (currentIndex >= currentLines.Length)
         {
             EndDialogue();
             return;
         }
 
-        DialogueLine line = lines[currentIndex];
-        SpeakerText.text = line.speaker;
-        DialogueText.text = line.text;
-
-        DialoguePanel.DOPunchScale(
-            Vector3.one * 0.02f,
-            0.15f,
-            4,
-            0.5f
-            );
+        ShowCurrentLine();
     }
 
     private void EndDialogue()
     {
-        isAnimating = true;
-        NextButton.interactable = false;
-
+        //대화창 종료 애니메이션
         Sequence sequence = DOTween.Sequence();
 
-        sequence.Append(
-            CharacterCanvasGroup
-            .DOFade(0f, 0.3f));
-
         sequence.Join(
-            Character.DOAnchorPos(
-                characterOriginalPosition + new Vector2(120f, 0f),
-                0.3f));
+            dialoguePanelTransform.DOScale(Vector3.zero, 0.15f));
 
-        sequence.Append(
-            DialoguePanel
-            .DOScale(Vector3.zero, 0.25f));
+        sequence.Join(dialogueCanvasGroup.DOFade(0f, 0.15f));
 
-        SpeakerText.text = "";
-        DialogueText.text = "";
+        sequence.OnComplete(() =>
+        {
+            currentLines = null;
+            dialoguePanel.SetActive(false);
 
-        NextButton.interactable = false;
-    }
-
-    private void OnDestroy()
-    {
-        NextButton.onClick.RemoveListener(ShowNextLine);
+            playerController.SetCanMove(true);
+            isDialogueActive = false;
+        });
     }
 }
