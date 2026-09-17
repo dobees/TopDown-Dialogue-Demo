@@ -166,3 +166,6 @@ DOTween 기반 대화창 연출
 
 또한 대화창이 사라지는 애니메이션이 끝난 뒤 실제 UI를 비활성화하고 플레이어 이동을 다시 허용합니다.
 
+
+---VIDEO---
+<img width="1460" height="716" alt="Image" src="https://github.com/user-attachments/assets/08f25eaf-a4ac-4706-be2a-284824e8fdbc" />
